@@ -1,0 +1,1585 @@
+// DOM Elements
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const startExerciseBtn = document.getElementById('startExerciseBtn');
+const pauseExerciseBtn = document.getElementById('pauseExerciseBtn');
+const endSessionBtn = document.getElementById('endSessionBtn');
+const exerciseList = document.getElementById('exerciseList');
+const feedbackList = document.getElementById('feedbackList');
+const exerciseInstructions = document.getElementById('exerciseInstructions');
+const repCount = document.getElementById('repCount');
+const sessionTime = document.getElementById('sessionTime');
+const formScore = document.getElementById('formScore');
+const currentModel = document.getElementById('currentModel');
+const modelIndicator = document.querySelector('.model-indicator span');
+
+// Check if in training mode
+const urlParams = new URLSearchParams(window.location.search);
+const isTrainingMode = urlParams.get('mode') === 'training';
+
+if (isTrainingMode) {
+    // Load patient's custom exercise program
+    const patientId = localStorage.getItem('session_patient_id');
+    const patientName = localStorage.getItem('session_patient_name');
+    
+    if (patientId && patientName) {
+        // Update header
+        const header = document.querySelector('header h1');
+        if (header) {
+            header.textContent = `Patient Mode - ${patientName}`;
+        }
+        
+        // Load patient's exercises from localStorage
+        const patients = JSON.parse(localStorage.getItem('rehab_patients')) || [];
+        const patient = patients.find(p => p.id === patientId);
+        
+        if (patient && patient.exercises && patient.exercises.length > 0) {
+            // Override the default exercises with patient's custom program
+            const customExercises = {};
+            
+            // Group exercises by body part
+            patient.exercises.forEach(exercise => {
+                let bodyPart = 'upper'; // Default
+                
+                // Map exercise types to body parts
+                if (exercise.type.includes('neck')) bodyPart = 'neck';
+                else if (exercise.type.includes('wrist') || exercise.type.includes('finger')) bodyPart = 'hand';
+                else if (exercise.type.includes('squat')) bodyPart = 'lower';
+                
+                if (!customExercises[bodyPart]) {
+                    customExercises[bodyPart] = [];
+                }
+                
+                customExercises[bodyPart].push({
+                    id: exercise.type,
+                    name: getExerciseName(exercise.type),
+                    model: getExerciseModel(exercise.type),
+                    reps: exercise.reps,
+                    sets: exercise.sets,
+                    instructions: exercise.instructions || getDefaultInstructions(exercise.type),
+                    side: 'both'
+                });
+            });
+            
+            // Merge with default exercises where needed
+            Object.keys(exercises).forEach(bodyPart => {
+                if (!customExercises[bodyPart]) {
+                    customExercises[bodyPart] = exercises[bodyPart];
+                }
+            });
+            
+            // Replace exercises object
+            Object.assign(exercises, customExercises);
+            
+            addFeedback(`Loaded ${patientName}'s custom exercise program`, 'good');
+        }
+    }
+}
+
+// Helper functions
+function getExerciseName(type) {
+    const names = {
+        'neck_flexion': 'Neck Flexion & Extension',
+        'neck_rotation': 'Neck Rotation',
+        'shoulder_abduction': 'Shoulder Abduction',
+        'shoulder_flexion': 'Shoulder Flexion',
+        'elbow_flexion': 'Elbow Flexion & Extension',
+        'wrist_flexion': 'Wrist Flexion & Extension',
+        'finger_flexion': 'Finger Squeeze & Open',
+        'squat': 'Squat'
+    };
+    return names[type] || type;
+}
+
+function getExerciseModel(type) {
+    if (type.includes('neck')) return 'face';
+    if (type.includes('wrist') || type.includes('finger')) return 'hands';
+    return 'pose';
+}
+
+function getDefaultInstructions(type) {
+    const instructions = {
+        'neck_flexion': 'Slowly bend head forward and backward through full range.',
+        'neck_rotation': 'Turn head left and right, keeping shoulders stable.',
+        'shoulder_abduction': 'Raise arms sideways to shoulder height.',
+        'shoulder_flexion': 'Raise arms forward to shoulder height.',
+        'elbow_flexion': 'Bend and straighten elbow completely.',
+        'wrist_flexion': 'Bend wrist forward and backward.',
+        'finger_flexion': 'Make tight fist, then fully extend fingers.',
+        'squat': 'Bend knees and hips as if sitting, then stand.'
+    };
+    return instructions[type] || 'Perform exercise with controlled movements.';
+}
+
+// Updated Exercise Database with only specified exercises
+const exercises = {
+    neck: [
+        { 
+            id: 'neck_flexion', 
+            name: 'Neck Flexion & Extension', 
+            model: 'face', 
+            reps: 10, 
+            sets: 3,
+            instructions: 'Slowly bend head forward (chin to chest), then gently tilt backward looking up. Repeat.',
+            side: 'both',
+            landmarks: {
+                flexionThreshold: 0.15,
+                extensionThreshold: 0.05
+            }
+        },
+        { 
+            id: 'neck_rotation', 
+            name: 'Neck Rotation', 
+            model: 'face', 
+            reps: 10, 
+            sets: 3,
+            instructions: 'Slowly turn head to left side, return to center, then turn to right side. Keep shoulders relaxed.',
+            side: 'both',
+            landmarks: {
+                rotationThreshold: 0.05
+            }
+        }
+    ],
+    upper: [
+        { 
+            id: 'shoulder_abduction', 
+            name: 'Shoulder Abduction', 
+            model: 'pose', 
+            reps: 12, 
+            sets: 3,
+            instructions: 'Raise arms sideways to shoulder height, palms facing down. Slowly lower back down.',
+            side: 'both',
+            landmarks: {
+                minAngle: 10,
+                maxAngle: 80
+            }
+        },
+        { 
+            id: 'shoulder_flexion', 
+            name: 'Shoulder Flexion', 
+            model: 'pose', 
+            reps: 12, 
+            sets: 3,
+            instructions: 'Raise arms forward to shoulder height, palms facing each other. Slowly lower back down.',
+            side: 'both',
+            landmarks: {
+                minAngle: 10,
+                maxAngle: 80
+            }
+        },
+        { 
+            id: 'elbow_flexion', 
+            name: 'Elbow Flexion & Extension', 
+            model: 'pose', 
+            reps: 15, 
+            sets: 3,
+            instructions: 'Bend elbow bringing hand to shoulder, then straighten arm completely.',
+            side: 'both',
+            landmarks: {
+                minAngle: 30,
+                maxAngle: 160
+            }
+        }
+    ],
+    hand: [
+        { 
+            id: 'wrist_flexion', 
+            name: 'Wrist Flexion & Extension', 
+            model: 'hands', 
+            reps: 15, 
+            sets: 3,
+            instructions: 'Bend wrist forward and backward through full range. Keep forearm supported.',
+            side: 'both',
+            landmarks: {
+                flexionThreshold: 30,
+                extensionThreshold: -20
+            }
+        },
+        { 
+            id: 'finger_flexion', 
+            name: 'Finger Squeeze & Open', 
+            model: 'hands', 
+            reps: 20, 
+            sets: 3,
+            instructions: 'Make tight fist, hold for 2 seconds, then fully extend fingers.',
+            side: 'both',
+            landmarks: {
+                closedThreshold: 0.15,
+                openThreshold: 0.25
+            }
+        }
+    ],
+    lower: [
+        { 
+            id: 'squat', 
+            name: 'Squat', 
+            model: 'pose', 
+            reps: 10, 
+            sets: 3,
+            instructions: 'Stand with feet shoulder-width apart. Bend knees and hips as if sitting back into a chair, then return to standing.',
+            side: 'both',
+            landmarks: {
+                minAngle: 70,
+                maxAngle: 170
+            }
+        }
+    ]
+};
+
+// Add this with your existing global variables at the TOP of patient-script.js
+
+// ===== VIDEO GUIDANCE VARIABLES =====
+let guidanceVideo = null;
+let videoSource = null;
+let countdownInterval = null;
+let autoCloseTime = 30; // seconds
+let currentVideoExercise = '';
+let isVideoPlaying = false;
+
+// Exercise to video mapping (add more as needed)
+const exerciseVideos = {
+    // Neck Exercises
+    "Neck Rotation": "neck_rotation.mp4",
+    "Head Tilt": "head_tilt.mp4",
+    "Neck Stretch": "neck_stretch.mp4",
+    "Chin Tucks": "chin_tucks.mp4",
+    "Neck Isometrics": "neck_isometrics.mp4",
+    
+    // Upper Body
+    "Shoulder Press": "shoulder_press.mp4",
+    "Arm Raises": "arm_raises.mp4",
+    "Shoulder Rotations": "shoulder_rotations.mp4",
+    "Chest Stretch": "chest_stretch.mp4",
+    "Arm Circles": "arm_circles.mp4",
+    
+    // Hand & Wrist
+    "Wrist Flexion": "wrist_flexion.mp4",
+    "Wrist Extension": "wrist_extension.mp4",
+    "Finger Stretches": "finger_stretches.mp4",
+    "Grip Strengthening": "grip_strengthening.mp4",
+    "Thumb Exercises": "thumb_exercises.mp4",
+    
+    // Lower Body
+    "Leg Raises": "leg_raises.mp4",
+    "Knee Bends": "knee_bends.mp4",
+    "Ankle Rotations": "ankle_rotations.mp4",
+    "Hip Abduction": "hip_abduction.mp4",
+    "Calf Raises": "calf_raises.mp4"
+};
+
+// Default video if specific one doesn't exist
+const defaultVideos = {
+    "neck": "neck_stretch.mp4",
+    "upper": "shoulder_press.mp4",
+    "hand": "wrist_flexion.mp4",
+    "lower": "leg_raises.mp4"
+};
+
+// Exercise-specific instructions
+const exerciseInstructionsMap = {
+    "Neck Rotation": [
+        "Sit or stand with your back straight",
+        "Slowly turn your head to the right until you feel a gentle stretch",
+        "Hold for 2-3 seconds",
+        "Return to center and repeat on the left side",
+        "Keep shoulders relaxed throughout"
+    ],
+    "Shoulder Press": [
+        "Stand with feet shoulder-width apart",
+        "Hold light weights or no weights at shoulder height",
+        "Press upward until arms are fully extended",
+        "Slowly lower back to starting position",
+        "Keep core engaged throughout the movement"
+    ],
+    "Leg Raises": [
+        "Lie on your back with legs straight",
+        "Place hands under your hips for support",
+        "Slowly raise one leg as high as comfortable",
+        "Hold for 2 seconds at the top",
+        "Slowly lower back down with control"
+    ],
+    "Wrist Flexion": [
+        "Sit with forearm supported on a table",
+        "Hold hand with palm facing up",
+        "Gently bend wrist upward",
+        "Hold for 2-3 seconds",
+        "Return to starting position slowly"
+    ]
+};
+
+// Variables
+let isTracking = false;
+let isExerciseActive = false;
+let currentStream = null;
+let ctx = null;
+let selectedBodyPart = 'neck';
+let selectedExercise = null;
+let activeModel = 'face';
+
+// MediaPipe Models
+let pose = null;
+let hands = null;
+let faceMesh = null;
+let camera = null;
+
+// Session Data
+let sessionData = {
+    startTime: null,
+    reps: 0,
+    formScore: 100,
+    feedback: [],
+    lastRepTime: 0,
+    currentState: 'start',
+    currentSide: 'right',
+    repHistory: []
+};
+
+// Add this function to help debug
+function debugFaceMesh() {
+    console.log('FaceMesh model status:', {
+        isDefined: typeof faceMesh !== 'undefined',
+        hasSend: faceMesh && typeof faceMesh.send === 'function',
+        activeModel: activeModel,
+        selectedExercise: selectedExercise
+    });
+    
+    // Add debug button (optional)
+    const debugBtn = document.createElement('button');
+    debugBtn.textContent = 'Debug FaceMesh';
+    debugBtn.style.position = 'fixed';
+    debugBtn.style.top = '60px';
+    debugBtn.style.right = '20px';
+    debugBtn.style.zIndex = '1000';
+    debugBtn.style.padding = '10px';
+    debugBtn.style.background = 'red';
+    debugBtn.style.color = 'white';
+    debugBtn.onclick = function() {
+        debugFaceMesh();
+        if (faceMesh) {
+            addFeedback('FaceMesh model is loaded', 'good');
+        } else {
+            addFeedback('FaceMesh model NOT loaded', 'error');
+        }
+    };
+    document.body.appendChild(debugBtn);
+}
+
+let sessionTimer = null;
+let elapsedSeconds = 0;
+
+// Initialize all MediaPipe models
+async function initializeModels() {
+    try {
+        // Initialize Pose model
+        pose = new Pose({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+        });
+        pose.setOptions({
+            modelComplexity: 1,
+            smoothLandmarks: true,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+        pose.onResults(onPoseResults);
+        
+        // Initialize Hands model
+        hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+        hands.setOptions({
+            maxNumHands: 2,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+        hands.onResults(onHandsResults);
+        
+        // Initialize Face Mesh model
+        faceMesh = new FaceMesh({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+        });
+        faceMesh.setOptions({
+            maxNumFaces: 1,
+            refineLandmarks: true,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+        faceMesh.onResults(onFaceResults);
+        
+        addFeedback('AI models initialized successfully!', 'good');
+        return true;
+    } catch (error) {
+        console.error('Error initializing models:', error);
+        addFeedback('Error initializing AI models', 'error');
+        debugFaceMesh(); // Add this line
+        return false;
+    }
+}
+
+// Start webcam
+async function startWebcam() {
+    try {
+        if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+        }
+        
+        currentStream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                facingMode: 'user',
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            },
+            audio: false
+        });
+        
+        video.srcObject = currentStream;
+        
+        return new Promise((resolve) => {
+            video.onloadedmetadata = () => {
+                video.width = video.videoWidth;
+                video.height = video.videoHeight;
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx = canvas.getContext('2d');
+                resolve(true);
+            };
+        });
+    } catch (error) {
+        console.error('Error accessing webcam:', error);
+        addFeedback('Error accessing camera. Please check permissions.', 'error');
+        return false;
+    }
+}
+
+// Process Pose results
+function onPoseResults(results) {
+    if (!ctx || !isTracking || activeModel !== 'pose') return;
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw video frame
+    ctx.save();
+    ctx.scale(-1, 1);
+    ctx.translate(-canvas.width, 0);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    ctx.restore();
+    
+    if (results.poseLandmarks) {
+        drawPoseLandmarks(results.poseLandmarks);
+        analyzePoseExercise(results.poseLandmarks);
+    }
+}
+
+// Process Hands results
+function onHandsResults(results) {
+    if (!ctx || !isTracking || activeModel !== 'hands') return;
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw video frame
+    ctx.save();
+    ctx.scale(-1, 1);
+    ctx.translate(-canvas.width, 0);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    ctx.restore();
+    
+    if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        drawHandLandmarks(results.multiHandLandmarks, results.multiHandedness);
+        analyzeHandExercise(results.multiHandLandmarks);
+    }
+}
+
+// Process Face results
+function onFaceResults(results) {
+    try {
+        if (!ctx || !isTracking || activeModel !== 'face') return;
+        
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw video frame
+        ctx.save();
+        ctx.scale(-1, 1);
+        ctx.translate(-canvas.width, 0);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+        
+        // Check if results and landmarks exist
+        if (results && results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+            const landmarks = results.multiFaceLandmarks[0];
+            if (landmarks && landmarks.length > 0) {
+                drawFaceLandmarks(results.multiFaceLandmarks);
+                if (isExerciseActive) {
+                    analyzeFaceExercise(results.multiFaceLandmarks);
+                }
+            }
+        } else {
+            // Add feedback when no face is detected
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+            ctx.fillRect(10, 10, 300, 40);
+            ctx.fillStyle = 'white';
+            ctx.font = '16px Arial';
+            ctx.fillText('No face detected. Move to center.', 20, 35);
+        }
+    } catch (error) {
+        console.error('Error in onFaceResults:', error);
+    }
+}
+// Draw Pose landmarks
+function drawPoseLandmarks(landmarks) {
+    // Draw connections
+    ctx.strokeStyle = '#00f2fe';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    
+    const connections = [
+        [11, 12], [11, 13], [13, 15], [12, 14], [14, 16], // Shoulders to hands
+        [11, 23], [12, 24], [23, 24], [23, 25], [25, 27], // Torso to legs
+        [24, 26], [26, 28], [27, 29], [28, 30], [29, 31], [30, 32] // Legs to feet
+    ];
+    
+    connections.forEach(conn => {
+        const [start, end] = conn;
+        if (landmarks[start] && landmarks[end]) {
+            const startX = canvas.width - (landmarks[start].x * canvas.width);
+            const startY = landmarks[start].y * canvas.height;
+            const endX = canvas.width - (landmarks[end].x * canvas.width);
+            const endY = landmarks[end].y * canvas.height;
+            
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+        }
+    });
+    
+    // Draw key landmarks for our exercises
+    const keyPoints = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26]; // Shoulders, elbows, wrists, hips, knees
+    
+    keyPoints.forEach(index => {
+        if (landmarks[index]) {
+            const x = canvas.width - (landmarks[index].x * canvas.width);
+            const y = landmarks[index].y * canvas.height;
+            
+            ctx.beginPath();
+            ctx.arc(x, y, 6, 0, 2 * Math.PI);
+            ctx.fillStyle = '#4776E6';
+            ctx.fill();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+    });
+}
+
+// Draw Hand landmarks
+function drawHandLandmarks(handLandmarks, handedness) {
+    handLandmarks.forEach((landmarks, handIndex) => {
+        const isRightHand = handedness[handIndex].label === 'Right';
+        
+        // Draw connections
+        ctx.strokeStyle = isRightHand ? '#43e97b' : '#fa709a';
+        ctx.lineWidth = 2;
+        
+        // Hand connections
+        const connections = [
+            [0, 1], [1, 2], [2, 3], [3, 4], // Thumb
+            [0, 5], [5, 6], [6, 7], [7, 8], // Index finger
+            [0, 9], [9, 10], [10, 11], [11, 12], // Middle finger
+            [0, 13], [13, 14], [14, 15], [15, 16], // Ring finger
+            [0, 17], [17, 18], [18, 19], [19, 20] // Pinky
+        ];
+        
+        connections.forEach(conn => {
+            const [start, end] = conn;
+            if (landmarks[start] && landmarks[end]) {
+                const startX = canvas.width - (landmarks[start].x * canvas.width);
+                const startY = landmarks[start].y * canvas.height;
+                const endX = canvas.width - (landmarks[end].x * canvas.width);
+                const endY = landmarks[end].y * canvas.height;
+                
+                ctx.beginPath();
+                ctx.moveTo(startX, startY);
+                ctx.lineTo(endX, endY);
+                ctx.stroke();
+            }
+        });
+        
+        // Draw landmarks
+        landmarks.forEach((landmark, index) => {
+            const x = canvas.width - (landmark.x * canvas.width);
+            const y = landmark.y * canvas.height;
+            
+            let radius = 3;
+            if (index === 0) radius = 6; // Wrist
+            if ([4, 8, 12, 16, 20].includes(index)) radius = 5; // Fingertips
+            
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, 2 * Math.PI);
+            ctx.fillStyle = isRightHand ? '#43e97b' : '#fa709a';
+            ctx.fill();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        });
+    });
+}
+
+// Draw Face landmarks
+function drawFaceLandmarks(faceLandmarks) {
+    if (!faceLandmarks || faceLandmarks.length === 0) return;
+    
+    const landmarks = faceLandmarks[0];
+    if (!landmarks || landmarks.length === 0) return;
+    
+    // Draw all 468 landmarks as small dots with circular arrangement
+    ctx.fillStyle = 'rgba(255, 100, 200, 0.6)';
+    
+    // Draw facial mesh with circular connections
+    drawFacialMesh(landmarks);
+    
+    // Draw face outline (oval shape)
+    drawFaceOutline(landmarks);
+    
+    // Draw eyes with circular connections
+    drawEyes(landmarks);
+    
+    // Draw mouth with circular shape
+    drawMouth(landmarks);
+    
+    // Draw eyebrows
+    drawEyebrows(landmarks);
+    
+    // Draw nose with circular shape
+    drawNose(landmarks);
+}
+
+// Helper function to draw facial mesh with circular patterns
+function drawFacialMesh(landmarks) {
+    // Draw all 468 landmarks as small dots
+    ctx.fillStyle = 'rgba(255, 100, 200, 0.4)';
+    for (let i = 0; i < landmarks.length; i++) {
+        const landmark = landmarks[i];
+        const x = canvas.width - (landmark.x * canvas.width);
+        const y = landmark.y * canvas.height;
+        
+        // Vary dot size based on landmark importance
+        let size = 1.5;
+        if (i % 50 === 0) size = 3; // Key points
+        if ([1, 33, 263, 61, 291, 199].includes(i)) size = 4; // Critical points
+        
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, 2 * Math.PI);
+        ctx.fill();
+    }
+    
+    // Draw circular connections between key points
+    ctx.strokeStyle = 'rgba(255, 100, 200, 0.3)';
+    ctx.lineWidth = 1;
+    
+    // Circular connections around face
+    const circularGroups = [
+        // Forehead circle
+        [10, 338, 297, 332, 284],
+        // Cheek circles
+        [116, 117, 118, 119, 120, 121],
+        [346, 347, 348, 349, 350, 351],
+        // Chin circle
+        [175, 148, 152, 377, 400, 378, 379],
+    ];
+    
+    circularGroups.forEach(group => {
+        ctx.beginPath();
+        group.forEach((index, i) => {
+            if (landmarks[index]) {
+                const x = canvas.width - (landmarks[index].x * canvas.width);
+                const y = landmarks[index].y * canvas.height;
+                
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+        });
+        ctx.closePath();
+        ctx.stroke();
+    });
+}
+
+// Draw face outline (oval shape)
+function drawFaceOutline(landmarks) {
+    ctx.strokeStyle = '#fa709a';
+    ctx.lineWidth = 2;
+    
+    // Face oval indices (MediaPipe standard)
+    const faceOval = [
+        10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 
+        361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 
+        176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 
+        162, 21, 54, 103, 67, 109
+    ];
+    
+    ctx.beginPath();
+    faceOval.forEach((index, i) => {
+        if (landmarks[index]) {
+            const x = canvas.width - (landmarks[index].x * canvas.width);
+            const y = landmarks[index].y * canvas.height;
+            
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+    });
+    ctx.closePath();
+    ctx.stroke();
+}
+
+// Draw eyes with circular connections
+function drawEyes(landmarks) {
+    // Left eye (circular)
+    const leftEyeIndices = [
+        33, 7, 163, 144, 145, 153, 154, 155, 133, 
+        173, 157, 158, 159, 160, 161, 246
+    ];
+    
+    // Right eye (circular)
+    const rightEyeIndices = [
+        362, 382, 381, 380, 374, 373, 390, 249, 
+        263, 466, 388, 387, 386, 385, 384, 398
+    ];
+    
+    ctx.strokeStyle = '#4facfe';
+    ctx.lineWidth = 1.5;
+    
+    // Draw left eye
+    ctx.beginPath();
+    leftEyeIndices.forEach((index, i) => {
+        if (landmarks[index]) {
+            const x = canvas.width - (landmarks[index].x * canvas.width);
+            const y = landmarks[index].y * canvas.height;
+            
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+    });
+    ctx.closePath();
+    ctx.stroke();
+    
+    // Draw right eye
+    ctx.beginPath();
+    rightEyeIndices.forEach((index, i) => {
+        if (landmarks[index]) {
+            const x = canvas.width - (landmarks[index].x * canvas.width);
+            const y = landmarks[index].y * canvas.height;
+            
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+    });
+    ctx.closePath();
+    ctx.stroke();
+}
+
+// Draw mouth with circular shape
+function drawMouth(landmarks) {
+    // Outer mouth (lip contour)
+    const outerMouth = [
+        61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 
+        291, 375, 321, 405, 314, 17, 84, 181, 91, 146
+    ];
+    
+    // Inner mouth
+    const innerMouth = [
+        78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 
+        308, 191, 80, 81, 82, 13, 312, 311, 310, 415
+    ];
+    
+    ctx.strokeStyle = '#ff5858';
+    ctx.lineWidth = 1.5;
+    
+    // Draw outer mouth
+    ctx.beginPath();
+    outerMouth.forEach((index, i) => {
+        if (landmarks[index]) {
+            const x = canvas.width - (landmarks[index].x * canvas.width);
+            const y = landmarks[index].y * canvas.height;
+            
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+    });
+    ctx.closePath();
+    ctx.stroke();
+    
+    // Draw inner mouth
+    ctx.beginPath();
+    innerMouth.forEach((index, i) => {
+        if (landmarks[index]) {
+            const x = canvas.width - (landmarks[index].x * canvas.width);
+            const y = landmarks[index].y * canvas.height;
+            
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+    });
+    ctx.closePath();
+    ctx.stroke();
+}
+
+// Draw eyebrows
+function drawEyebrows(landmarks) {
+    // Left eyebrow
+    const leftEyebrow = [70, 63, 105, 66, 107, 55, 65, 52, 53, 46];
+    // Right eyebrow
+    const rightEyebrow = [300, 293, 334, 296, 336, 285, 295, 282, 283, 276];
+    
+    ctx.strokeStyle = '#8E54E9';
+    ctx.lineWidth = 1.5;
+    
+    // Draw left eyebrow
+    ctx.beginPath();
+    leftEyebrow.forEach((index, i) => {
+        if (landmarks[index]) {
+            const x = canvas.width - (landmarks[index].x * canvas.width);
+            const y = landmarks[index].y * canvas.height;
+            
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+    });
+    ctx.stroke();
+    
+    // Draw right eyebrow
+    ctx.beginPath();
+    rightEyebrow.forEach((index, i) => {
+        if (landmarks[index]) {
+            const x = canvas.width - (landmarks[index].x * canvas.width);
+            const y = landmarks[index].y * canvas.height;
+            
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+    });
+    ctx.stroke();
+}
+
+// Draw nose with circular shape
+function drawNose(landmarks) {
+    // Nose bridge and tip
+    const noseBridge = [168, 6, 197, 195, 5, 4, 1, 19, 94];
+    const noseTip = [1, 2, 98, 327, 326, 2, 97, 326, 327, 294];
+    const noseWings = [129, 49, 131, 358, 357, 350, 348, 347, 330];
+    
+    ctx.strokeStyle = '#43e97b';
+    ctx.lineWidth = 1.5;
+    
+    // Draw nose bridge
+    ctx.beginPath();
+    noseBridge.forEach((index, i) => {
+        if (landmarks[index]) {
+            const x = canvas.width - (landmarks[index].x * canvas.width);
+            const y = landmarks[index].y * canvas.height;
+            
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+    });
+    ctx.stroke();
+    
+    // Draw nose tip circle
+    ctx.beginPath();
+    noseTip.forEach((index, i) => {
+        if (landmarks[index]) {
+            const x = canvas.width - (landmarks[index].x * canvas.width);
+            const y = landmarks[index].y * canvas.height;
+            
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+    });
+    ctx.closePath();
+    ctx.stroke();
+}
+// Add this to optimize drawing performance
+let lastDrawTime = 0;
+const DRAW_INTERVAL = 33; // ~30 FPS
+
+function drawFaceLandmarksOptimized(faceLandmarks) {
+    const now = Date.now();
+    if (now - lastDrawTime < DRAW_INTERVAL) return;
+    lastDrawTime = now;
+    
+    drawFaceLandmarks(faceLandmarks);
+}
+
+// Then update your onFaceResults function to use the optimized version:
+function onFaceResults(results) {
+    try {
+        if (!ctx || !isTracking || activeModel !== 'face') return;
+        
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw video frame
+        ctx.save();
+        ctx.scale(-1, 1);
+        ctx.translate(-canvas.width, 0);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+        
+        // Check if results and landmarks exist
+        if (results && results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+            const landmarks = results.multiFaceLandmarks[0];
+            if (landmarks && landmarks.length > 0) {
+                drawFaceLandmarksOptimized(results.multiFaceLandmarks); // Use optimized version
+                if (isExerciseActive) {
+                    analyzeFaceExercise(results.multiFaceLandmarks);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error in onFaceResults:', error);
+    }
+}
+// Analyze pose-based exercises
+function analyzePoseExercise(landmarks) {
+    if (!selectedExercise || !isExerciseActive) return;
+    
+    switch(selectedExercise.id) {
+        case 'shoulder_abduction':
+            analyzeShoulderAbduction(landmarks);
+            break;
+        case 'shoulder_flexion':
+            analyzeShoulderFlexion(landmarks);
+            break;
+        case 'elbow_flexion':
+            analyzeElbowFlexionExtension(landmarks);
+            break;
+        case 'squat':
+            analyzeSquat(landmarks);
+            break;
+    }
+}
+
+// Analyze hand-based exercises
+function analyzeHandExercise(handLandmarks) {
+    if (!selectedExercise || !isExerciseActive || handLandmarks.length === 0) return;
+    
+    const landmarks = handLandmarks[0];
+    
+    switch(selectedExercise.id) {
+        case 'wrist_flexion':
+            analyzeWristFlexionExtension(landmarks);
+            break;
+        case 'finger_flexion':
+            analyzeFingerFlexion(landmarks);
+            break;
+    }
+}
+
+// Analyze face/neck-based exercises
+function analyzeFaceExercise(faceLandmarks) {
+    if (!selectedExercise || !isExerciseActive || faceLandmarks.length === 0) return;
+    
+    const landmarks = faceLandmarks[0];
+    
+    switch(selectedExercise.id) {
+        case 'neck_flexion':
+            analyzeNeckFlexionExtension(landmarks);
+            break;
+        case 'neck_rotation':
+            analyzeNeckRotation(landmarks);
+            break;
+    }
+}
+
+// Exercise Analysis Functions
+
+function analyzeShoulderAbduction(landmarks) {
+    const leftShoulder = landmarks[11];
+    const rightShoulder = landmarks[12];
+    const leftWrist = landmarks[15];
+    const rightWrist = landmarks[16];
+    
+    if (leftShoulder && leftWrist) {
+        const leftAngle = Math.atan2(leftWrist.y - leftShoulder.y, leftWrist.x - leftShoulder.x) * (180 / Math.PI);
+        
+        if (Math.abs(leftAngle) > 80 && sessionData.currentState !== 'raised') {
+            if (Date.now() - sessionData.lastRepTime > 1000) {
+                sessionData.reps++;
+                sessionData.lastRepTime = Date.now();
+                updateRepCount();
+                addFeedback('Shoulder abduction detected!', 'good');
+                sessionData.currentSide = 'left';
+            }
+            sessionData.currentState = 'raised';
+        } else if (Math.abs(leftAngle) < 20 && sessionData.currentState === 'raised') {
+            sessionData.currentState = 'lowered';
+        }
+    }
+    
+    if (rightShoulder && rightWrist) {
+        const rightAngle = Math.atan2(rightWrist.y - rightShoulder.y, rightWrist.x - rightShoulder.x) * (180 / Math.PI);
+        
+        if (Math.abs(rightAngle) > 80 && sessionData.currentState !== 'raised') {
+            if (Date.now() - sessionData.lastRepTime > 1000) {
+                sessionData.reps++;
+                sessionData.lastRepTime = Date.now();
+                updateRepCount();
+                addFeedback('Shoulder abduction detected!', 'good');
+                sessionData.currentSide = 'right';
+            }
+            sessionData.currentState = 'raised';
+        } else if (Math.abs(rightAngle) < 20 && sessionData.currentState === 'raised') {
+            sessionData.currentState = 'lowered';
+        }
+    }
+}
+
+function analyzeShoulderFlexion(landmarks) {
+    const leftShoulder = landmarks[11];
+    const rightShoulder = landmarks[12];
+    const leftWrist = landmarks[15];
+    const rightWrist = landmarks[16];
+    
+    if (leftShoulder && leftWrist) {
+        const leftHeightDiff = leftShoulder.y - leftWrist.y;
+        
+        if (leftHeightDiff > 0.1 && sessionData.currentState !== 'raised') {
+            if (Date.now() - sessionData.lastRepTime > 1000) {
+                sessionData.reps++;
+                sessionData.lastRepTime = Date.now();
+                updateRepCount();
+                addFeedback('Shoulder flexion detected!', 'good');
+                sessionData.currentSide = 'left';
+            }
+            sessionData.currentState = 'raised';
+        } else if (leftHeightDiff < 0.02 && sessionData.currentState === 'raised') {
+            sessionData.currentState = 'lowered';
+        }
+    }
+    
+    if (rightShoulder && rightWrist) {
+        const rightHeightDiff = rightShoulder.y - rightWrist.y;
+        
+        if (rightHeightDiff > 0.1 && sessionData.currentState !== 'raised') {
+            if (Date.now() - sessionData.lastRepTime > 1000) {
+                sessionData.reps++;
+                sessionData.lastRepTime = Date.now();
+                updateRepCount();
+                addFeedback('Shoulder flexion detected!', 'good');
+                sessionData.currentSide = 'right';
+            }
+            sessionData.currentState = 'raised';
+        } else if (rightHeightDiff < 0.02 && sessionData.currentState === 'raised') {
+            sessionData.currentState = 'lowered';
+        }
+    }
+}
+
+function analyzeElbowFlexionExtension(landmarks) {
+    const leftShoulder = landmarks[11];
+    const leftElbow = landmarks[13];
+    const leftWrist = landmarks[15];
+    const rightShoulder = landmarks[12];
+    const rightElbow = landmarks[14];
+    const rightWrist = landmarks[16];
+    
+    // Check left arm
+    if (leftShoulder && leftElbow && leftWrist) {
+        const leftAngle = calculateAngle(leftShoulder, leftElbow, leftWrist);
+        
+        if (leftAngle < 60 && sessionData.currentState !== 'flexed') {
+            if (Date.now() - sessionData.lastRepTime > 1000) {
+                sessionData.reps++;
+                sessionData.lastRepTime = Date.now();
+                updateRepCount();
+                addFeedback('Elbow flexion detected!', 'good');
+                sessionData.currentSide = 'left';
+            }
+            sessionData.currentState = 'flexed';
+        } else if (leftAngle > 150 && sessionData.currentState === 'flexed') {
+            sessionData.currentState = 'extended';
+        }
+    }
+    
+    // Check right arm
+    if (rightShoulder && rightElbow && rightWrist) {
+        const rightAngle = calculateAngle(rightShoulder, rightElbow, rightWrist);
+        
+        if (rightAngle < 60 && sessionData.currentState !== 'flexed') {
+            if (Date.now() - sessionData.lastRepTime > 1000) {
+                sessionData.reps++;
+                sessionData.lastRepTime = Date.now();
+                updateRepCount();
+                addFeedback('Elbow flexion detected!', 'good');
+                sessionData.currentSide = 'right';
+            }
+            sessionData.currentState = 'flexed';
+        } else if (rightAngle > 150 && sessionData.currentState === 'flexed') {
+            sessionData.currentState = 'extended';
+        }
+    }
+}
+
+function analyzeSquat(landmarks) {
+    const leftHip = landmarks[23];
+    const leftKnee = landmarks[25];
+    const leftAnkle = landmarks[27];
+    const rightHip = landmarks[24];
+    const rightKnee = landmarks[26];
+    const rightAnkle = landmarks[28];
+    
+    if (leftHip && leftKnee && leftAnkle) {
+        const leftAngle = calculateAngle(leftHip, leftKnee, leftAnkle);
+        
+        if (leftAngle < 100 && sessionData.currentState !== 'squatted') {
+            if (Date.now() - sessionData.lastRepTime > 1000) {
+                sessionData.reps++;
+                sessionData.lastRepTime = Date.now();
+                updateRepCount();
+                addFeedback('Squat detected!', 'good');
+            }
+            sessionData.currentState = 'squatted';
+        } else if (leftAngle > 160 && sessionData.currentState === 'squatted') {
+            sessionData.currentState = 'standing';
+        }
+    }
+}
+
+function analyzeWristFlexionExtension(handLandmarks) {
+    const wrist = handLandmarks[0];
+    const middleMCP = handLandmarks[9];
+    
+    if (wrist && middleMCP) {
+        const angle = Math.atan2(middleMCP.y - wrist.y, middleMCP.x - wrist.x) * (180 / Math.PI);
+        
+        if (angle > 30 && sessionData.currentState !== 'flexed') {
+            if (Date.now() - sessionData.lastRepTime > 1000) {
+                sessionData.reps++;
+                sessionData.lastRepTime = Date.now();
+                updateRepCount();
+                addFeedback('Wrist flexion detected!', 'good');
+            }
+            sessionData.currentState = 'flexed';
+        } else if (angle < -20 && sessionData.currentState !== 'extended') {
+            if (Date.now() - sessionData.lastRepTime > 1000) {
+                sessionData.reps++;
+                sessionData.lastRepTime = Date.now();
+                updateRepCount();
+                addFeedback('Wrist extension detected!', 'good');
+            }
+            sessionData.currentState = 'extended';
+        }
+    }
+}
+
+function analyzeFingerFlexion(handLandmarks) {
+    const wrist = handLandmarks[0];
+    const fingertips = [4, 8, 12, 16, 20];
+    
+    let totalDistance = 0;
+    fingertips.forEach(index => {
+        const tip = handLandmarks[index];
+        if (tip && wrist) {
+            const dx = tip.x - wrist.x;
+            const dy = tip.y - wrist.y;
+            totalDistance += Math.sqrt(dx * dx + dy * dy);
+        }
+    });
+    
+    const avgDistance = totalDistance / fingertips.length;
+    
+    if (avgDistance < 0.15 && sessionData.currentState !== 'closed') {
+        if (Date.now() - sessionData.lastRepTime > 1000) {
+            sessionData.reps++;
+            sessionData.lastRepTime = Date.now();
+            updateRepCount();
+            addFeedback('Fist made! Good finger flexion.', 'good');
+        }
+        sessionData.currentState = 'closed';
+    } else if (avgDistance > 0.25 && sessionData.currentState === 'closed') {
+        sessionData.currentState = 'open';
+    }
+}
+
+function analyzeNeckFlexionExtension(faceLandmarks) {
+    const nose = faceLandmarks[1];
+    const chin = faceLandmarks[152];
+    
+    if (nose && chin) {
+        const verticalDistance = chin.y - nose.y;
+        
+        if (verticalDistance > 0.15 && sessionData.currentState !== 'flexed') {
+            if (Date.now() - sessionData.lastRepTime > 1000) {
+                sessionData.reps++;
+                sessionData.lastRepTime = Date.now();
+                updateRepCount();
+                addFeedback('Neck flexion detected!', 'good');
+            }
+            sessionData.currentState = 'flexed';
+        } else if (verticalDistance < 0.05 && sessionData.currentState !== 'extended') {
+            if (Date.now() - sessionData.lastRepTime > 1000) {
+                sessionData.reps++;
+                sessionData.lastRepTime = Date.now();
+                updateRepCount();
+                addFeedback('Neck extension detected!', 'good');
+            }
+            sessionData.currentState = 'extended';
+        }
+    }
+}
+
+function analyzeNeckRotation(faceLandmarks) {
+    const leftEye = faceLandmarks[33];
+    const rightEye = faceLandmarks[263];
+    const nose = faceLandmarks[1];
+    
+    if (leftEye && rightEye && nose) {
+        const eyeMidX = (leftEye.x + rightEye.x) / 2;
+        const horizontalOffset = nose.x - eyeMidX;
+        
+        if (horizontalOffset > 0.05 && sessionData.currentState !== 'right') {
+            if (Date.now() - sessionData.lastRepTime > 1000) {
+                sessionData.reps++;
+                sessionData.lastRepTime = Date.now();
+                updateRepCount();
+                addFeedback('Right neck rotation detected!', 'good');
+            }
+            sessionData.currentState = 'right';
+        } else if (horizontalOffset < -0.05 && sessionData.currentState !== 'left') {
+            if (Date.now() - sessionData.lastRepTime > 1000) {
+                sessionData.reps++;
+                sessionData.lastRepTime = Date.now();
+                updateRepCount();
+                addFeedback('Left neck rotation detected!', 'good');
+            }
+            sessionData.currentState = 'left';
+        }
+    }
+}
+
+function calculateAngle(a, b, c) {
+    const ab = { x: b.x - a.x, y: b.y - a.y };
+    const cb = { x: b.x - c.x, y: b.y - c.y };
+    
+    const dot = (ab.x * cb.x + ab.y * cb.y);
+    const cross = (ab.x * cb.y - ab.y * cb.x);
+    
+    let angle = Math.atan2(cross, dot);
+    angle = (angle * 180) / Math.PI;
+    return Math.abs(angle);
+}
+
+// UI Update Functions
+function updateRepCount() {
+    repCount.textContent = sessionData.reps;
+    
+    // Update form score based on feedback
+    const errorCount = sessionData.feedback.filter(f => f.type === 'warning' || f.type === 'error').length;
+    const newScore = Math.max(70, 100 - (errorCount * 2));
+    sessionData.formScore = newScore;
+    formScore.textContent = `${newScore}%`;
+}
+
+function addFeedback(message, type = 'info') {
+    const feedbackItem = document.createElement('div');
+    feedbackItem.className = `feedback-item ${type}`;
+    feedbackItem.textContent = `[${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}] ${message}`;
+    
+    feedbackList.appendChild(feedbackItem);
+    feedbackList.scrollTop = feedbackList.scrollHeight;
+    
+    // Keep only last 10 feedback items
+    const items = feedbackList.querySelectorAll('.feedback-item');
+    if (items.length > 10) {
+        items[0].remove();
+    }
+    
+    sessionData.feedback.push({
+        time: new Date().toISOString(),
+        message: message,
+        type: type
+    });
+}
+
+// Initialize body selection
+function initBodySelection() {
+    const bodyOptions = document.querySelectorAll('.body-option');
+    bodyOptions.forEach(option => {
+        option.addEventListener('click', () => {
+            bodyOptions.forEach(opt => opt.classList.remove('active'));
+            option.classList.add('active');
+            selectedBodyPart = option.dataset.body;
+            loadExercises(selectedBodyPart);
+        });
+    });
+    
+    loadExercises('neck');
+}
+
+// Load exercises for selected body part
+function loadExercises(bodyPart) {
+    exerciseList.innerHTML = '';
+    const bodyExercises = exercises[bodyPart] || [];
+    
+    bodyExercises.forEach(exercise => {
+        const exerciseItem = document.createElement('div');
+        exerciseItem.className = 'exercise-item';
+        exerciseItem.dataset.id = exercise.id;
+        exerciseItem.innerHTML = `
+            <div class="exercise-name">${exercise.name}</div>
+            <div>
+                <span class="exercise-model model-${exercise.model}">${exercise.model.toUpperCase()}</span>
+                <span style="font-size: 0.85rem; opacity: 0.8;">${exercise.reps} reps × ${exercise.sets} sets</span>
+            </div>
+        `;
+        
+        exerciseItem.addEventListener('click', () => {
+            document.querySelectorAll('.exercise-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            exerciseItem.classList.add('active');
+            selectExercise(exercise);
+        });
+        
+        exerciseList.appendChild(exerciseItem);
+    });
+    
+    if (bodyExercises.length > 0) {
+        setTimeout(() => {
+            document.querySelector('.exercise-item').classList.add('active');
+            selectExercise(bodyExercises[0]);
+        }, 100);
+    }
+}
+
+// Select an exercise
+function selectExercise(exercise) {
+    selectedExercise = exercise;
+    activeModel = exercise.model;
+    
+    // Update model indicator
+    currentModel.textContent = exercise.model.charAt(0).toUpperCase() + exercise.model.slice(1);
+    modelIndicator.textContent = `${exercise.model.toUpperCase()} Model Active`;
+    
+    // Update indicator dot
+    const indicatorDot = document.querySelector('.indicator-dot');
+    indicatorDot.className = 'indicator-dot';
+    indicatorDot.classList.add(`indicator-${exercise.model}`);
+    
+    // Update instructions
+    exerciseInstructions.innerHTML = `
+        <h4 style="color: #00f2fe; margin-bottom: 10px;">${exercise.name}</h4>
+        <p style="margin-bottom: 8px;"><strong>Target:</strong> ${exercise.reps} reps × ${exercise.sets} sets</p>
+        <p style="margin-bottom: 15px;"><strong>Model:</strong> ${exercise.model.toUpperCase()} Detection</p>
+        <div style="background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 8px;">
+            <strong>Instructions:</strong> ${exercise.instructions}
+        </div>
+    `;
+    
+    // Reset session data
+    resetSessionData();
+    addFeedback(`Selected: ${exercise.name} (${exercise.model} model)`, 'info');
+}
+
+// Reset session data
+function resetSessionData() {
+    sessionData = {
+        startTime: null,
+        reps: 0,
+        formScore: 100,
+        feedback: [],
+        lastRepTime: 0,
+        currentState: 'start',
+        currentSide: 'right',
+        repHistory: []
+    };
+    
+    repCount.textContent = '0';
+    formScore.textContent = '100%';
+    elapsedSeconds = 0;
+    sessionTime.textContent = '0:00';
+    
+    if (sessionTimer) {
+        clearInterval(sessionTimer);
+        sessionTimer = null;
+    }
+}
+
+// Start exercise session
+function startExerciseSession() {
+    if (!selectedExercise) {
+        addFeedback('Please select an exercise first', 'error');
+        return;
+    }
+    
+    isTracking = true;
+    isExerciseActive = true;
+    startExerciseBtn.disabled = true;
+    pauseExerciseBtn.disabled = false;
+    endSessionBtn.disabled = false;
+    
+    resetSessionData();
+    sessionData.startTime = new Date().toISOString();
+    
+    // Start session timer
+    updateTimer();
+    sessionTimer = setInterval(() => {
+        elapsedSeconds++;
+        updateTimer();
+    }, 1000);
+    
+    addFeedback(`Started ${selectedExercise.name} session`, 'good');
+    addFeedback(`Using ${activeModel.toUpperCase()} model for detection`, 'info');
+    
+    // Start the appropriate camera pipeline
+    startCameraPipeline();
+}
+
+// Start camera pipeline for active model
+function startCameraPipeline() {
+    try {
+        if (camera) {
+            camera.stop();
+        }
+        
+        camera = new Camera(video, {
+            onFrame: async () => {
+                if (!isTracking) return;
+                
+                try {
+                    if (activeModel === 'pose' && pose) {
+                        await pose.send({image: video});
+                    } else if (activeModel === 'hands' && hands) {
+                        await hands.send({image: video});
+                    } else if (activeModel === 'face' && faceMesh) {
+                        // Ensure faceMesh is initialized
+                        if (faceMesh && typeof faceMesh.send === 'function') {
+                            await faceMesh.send({image: video});
+                        } else {
+                            console.error('FaceMesh model not properly initialized');
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error in camera pipeline:', error);
+                    if (error.message.includes('FaceMesh')) {
+                        addFeedback('Face detection error. Please ensure your face is visible.', 'warning');
+                    }
+                }
+            },
+            width: 640, // Reduced for better performance
+            height: 480
+        });
+        
+        camera.start();
+    } catch (error) {
+        console.error('Error starting camera pipeline:', error);
+        addFeedback('Error starting camera: ' + error.message, 'error');
+    }
+}
+
+// Pause/resume session
+function togglePauseSession() {
+    if (!isExerciseActive) return;
+    
+    isExerciseActive = !isExerciseActive;
+    if (isExerciseActive) {
+        pauseExerciseBtn.innerHTML = '<span>⏸</span> Pause';
+        addFeedback('Session resumed', 'good');
+    } else {
+        pauseExerciseBtn.innerHTML = '<span>▶</span> Resume';
+        addFeedback('Session paused', 'warning');
+    }
+}
+
+// End session
+function endExerciseSession() {
+    isTracking = false;
+    isExerciseActive = false;
+    startExerciseBtn.disabled = false;
+    pauseExerciseBtn.disabled = true;
+    endSessionBtn.disabled = true;
+    
+    if (sessionTimer) {
+        clearInterval(sessionTimer);
+        sessionTimer = null;
+    }
+    
+    if (camera) {
+        camera.stop();
+    }
+    
+    const minutes = Math.floor(elapsedSeconds / 60);
+    const seconds = elapsedSeconds % 60;
+    
+    addFeedback(`Session ended. Completed ${sessionData.reps} reps in ${minutes}:${seconds.toString().padStart(2, '0')}`, 'good');
+    addFeedback(`Final form score: ${sessionData.formScore}%`, 'info');
+}
+
+// Update timer display
+function updateTimer() {
+    const minutes = Math.floor(elapsedSeconds / 60);
+    const seconds = elapsedSeconds % 60;
+    sessionTime.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+// Initialize the application
+async function initApp() {
+    addFeedback('Initializing application...', 'info');
+    
+    initBodySelection();
+    
+    // Initialize webcam
+    const cameraStarted = await startWebcam();
+    if (!cameraStarted) return;
+    
+    // Initialize AI models
+    const modelsInitialized = await initializeModels();
+    if (!modelsInitialized) return;
+    
+    // Set up event listeners
+    startExerciseBtn.addEventListener('click', startExerciseSession);
+    pauseExerciseBtn.addEventListener('click', togglePauseSession);
+    endSessionBtn.addEventListener('click', endExerciseSession);
+    
+    addFeedback('Application ready! Select an exercise to begin.', 'good');
+}
+// Function to record exercise session
+function recordExerciseSession(exerciseName, duration, reps, accuracy, feedback) {
+    // Get current user
+    const currentUser = JSON.parse(localStorage.getItem('rehabUser'));
+    if (!currentUser) return;
+    
+    // Record session
+    const sessionId = progressStorage.addSession({
+        username: currentUser.username,
+        exercise: exerciseName,
+        date: new Date().toISOString().split('T')[0],
+        duration: duration,
+        reps: reps,
+        sets: 1,
+        accuracy: accuracy,
+        feedback: feedback,
+        painLevel: 2, // Default pain level
+        difficulty: "Medium"
+    });
+    
+    // Show confirmation
+    console.log(`Session recorded: ${exerciseName} - ${reps} reps at ${accuracy}% accuracy`);
+    
+    // Optional: Show notification
+    alert(`✅ Session recorded!\n${exerciseName}: ${reps} reps at ${accuracy}% accuracy`);
+    
+    return sessionId;
+}
+
+// Add progress button to patient.html navigation
+function addProgressButton() {
+    const nav = document.querySelector('.patient-nav'); // Adjust selector based on your HTML
+    if (nav) {
+        const progressBtn = document.createElement('button');
+        progressBtn.className = 'progress-btn';
+        progressBtn.innerHTML = '📊 View My Progress';
+        progressBtn.onclick = () => window.location.href = 'progress.html';
+        nav.appendChild(progressBtn);
+    }
+}
+
+// Start the application
+window.addEventListener('load', initApp);

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rehabilitation Exercise Tracker - Login</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="login-container" id="loginContainer">
+        <div class="login-box">
+            <header class="login-header">
+                <h1>Rehabilitation Exercise Tracker</h1>
+                <p class="subtitle">AI-powered exercise monitoring for effective recovery</p>
+            </header>
+
+            <main class="login-main">
+                <div class="login-form-container">
+                    <h2>Welcome Back</h2>
+                    <p class="login-subtitle">Please login to continue</p>
+                    
+                    <div class="role-selection">
+                        <button class="role-btn active" data-role="patient">Patient</button>
+                        <button class="role-btn" data-role="therapist">Therapist</button>
+                    </div>
+                    
+                    <form id="loginForm">
+                        <div class="form-group">
+                            <label for="username">Username</label>
+                            <input type="text" id="username" name="username" required 
+                                   placeholder="Enter your username">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="password">Password</label>
+                            <input type="password" id="password" name="password" required 
+                                   placeholder="Enter your password">
+                        </div>
+                        
+                        <div class="form-group">
+                            <button type="submit" class="login-btn">Login</button>
+                        </div>
+                        
+                        <div class="demo-credentials">
+                            <h4>Demo Credentials:</h4>
+                            <p><strong>Patients:</strong> rubi/1234, maliha/1235, sagor/1236</p>
+                            <p><strong>Therapist:</strong> sagordas/12345</p>
+                        </div>
+                    </form>
+                    
+                    <div id="errorMessage" class="error-message"></div>
+                </div>
+                
+                <div class="login-features">
+                    <h3>Features</h3>
+                    <div class="features-list">
+                        <div class="feature-item">
+                            <span></span> AI-Powered Analysis
+                        </div>
+                        <div class="feature-item">
+                            <span></span> Progress Tracking
+                        </div>
+                        <div class="feature-item">
+                            <span></span> Form Correction
+                        </div>
+                        <div class="feature-item">
+                            <span></span> Easy to Use
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+
+<script>
+function viewProgress() {
+    window.location.href = 'progress.html';
+}
+</script>
+    <!-- Original Home Container (Hidden by default) -->
+    <div class="home-container" id="homeContainer" style="display: none;">
+        <header class="home-header">
+            <h1> Rehabilitation Exercise Tracker</h1>
+            <p class="subtitle">AI-powered exercise monitoring for effective recovery</p>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </header>
+
+        <main class="home-main">
+            <div class="mode-selection">
+                <div class="mode-card" onclick="enterPatientMode()">
+                    <div class="mode-icon">👤</div>
+                    <h2>Patient Mode</h2>
+                    <p>Track your rehabilitation exercises with real-time AI feedback</p>
+                    <ul class="mode-features">
+                        <li>Real-time form analysis</li>
+                        <li>Repetition counting</li>
+                        <li>Progress tracking</li>
+                        <li>Instant feedback</li>
+                    </ul>
+                    <button class="mode-btn">Enter Patient Mode →</button>
+                </div>
+                
+                <div class="mode-card" onclick="enterTrainingMode()">
+                    <div class="mode-icon">🏋️</div>
+                    <h2>Training Mode</h2>
+                    <p>Professional tools for therapists and rehabilitation specialists</p>
+                    <ul class="mode-features">
+                        <li>Patient management & profiles</li>
+                        <li>Custom exercise programs</li>
+                        <li>Progress analytics & reports</li>
+                        <li>Multi-patient monitoring</li>
+                    </ul>
+                    <button class="mode-btn">Enter Training Mode →</button>
+                </div>
+            </div>
+
+            <div class="features-section">
+                <h2>Key Features</h2>
+                <div class="features-grid">
+                    <div class="feature">
+                        <div class="feature-icon"></div>
+                        <h3>AI-Powered Analysis</h3>
+                        <p>Real-time pose detection using MediaPipe models</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon"></div>
+                        <h3>Progress Tracking</h3>
+                        <p>Monitor your improvement over time</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon"></div>
+                        <h3>Form Correction</h3>
+                        <p>Instant feedback on exercise technique</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon"></div>
+                        <h3>Easy to Use</h3>
+                        <p>No installation required, works in your browser</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="instructions">
+                <h2>Getting Started</h2>
+                <ol>
+                    <li>Select <strong>Patient Mode</strong> to begin tracking exercises</li>
+                    <li>Allow camera access when prompted</li>
+                    <li>Choose an exercise from the list</li>
+                    <li>Follow the on-screen instructions</li>
+                    <li>Start exercising and receive real-time feedback!</li>
+                </ol>
+                <div class="quick-access">
+                    <h4>Quick Access</h4>
+                    <div class="quick-buttons">
+                        <button onclick="quickAccess('patient')" class="quick-btn">
+                            👤 Patient Demo
+                        </button>
+                        <button onclick="quickAccess('therapist')" class="quick-btn">
+                            🏋️ Therapist Demo
+                        </button>
+                        <button onclick="viewProgressDirectly()" class="quick-btn">
+                            📊 View Progress
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="home-footer">
+            <p>⚠️ <strong>Important:</strong> This tool is for rehabilitation assistance only. Always consult with your
+                healthcare provider before starting any exercise program.</p>
+            <p class="copyright">© 2024 Rehabilitation Exercise Tracker</p>
+        </footer>
+    </div>
+<!-- Add this after the login form, before the demo credentials section -->
+    <script src="login.js"></script>
+</body>
+
+</html>

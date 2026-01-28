@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Mode - Rehabilitation Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="patient-styles.css">
+    <!-- Add this to your patient.html header -->
+<nav class="patient-nav">
+    <!-- Your existing navigation items -->
+    <button onclick="goToProgress()" class="nav-btn">
+        📊 View My Progress
+    </button>
+</nav>
+
+<style>
+.patient-nav {
+    display: flex;
+    gap: 10px;
+    margin: 20px 0;
+    justify-content: center;
+}
+
+.nav-btn {
+    padding: 12px 24px;
+    background: #6a11cb;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.nav-btn:hover {
+    background: #5a0db3;
+    transform: translateY(-2px);
+}
+</style>
+
+<script>
+function goToProgress() {
+    window.location.href = 'progress.html';
+}
+</script>
+</head>
+<body>
+    <a href="index.html" class="back-home">← Back to Home</a>
+    
+    <div class="container">
+        <header>
+            <h1>Patient Exercise Tracker</h1>
+            <p class="subtitle">Real-time AI feedback for your rehabilitation exercises</p>
+        </header>
+        
+        <div class="dashboard">
+            <div class="sidebar">
+                <h2 class="section-title">Exercise Selection</h2>
+                
+                <div class="model-indicator">
+                    <div class="indicator-dot indicator-pose"></div>
+                    <span>Pose Model Active</span>
+                </div>
+                
+                <div class="body-options">
+                    <div class="body-option active" data-body="neck">
+                        <div class="body-icon">🧠</div>
+                        <div>
+                            <h3>Neck Exercises</h3>
+                            <p>Head and neck movements</p>
+                        </div>
+                    </div>
+                    <div class="body-option" data-body="upper">
+                        <div class="body-icon">💪</div>
+                        <div>
+                            <h3>Upper Body</h3>
+                            <p>Shoulder and arm exercises</p>
+                        </div>
+                    </div>
+                    <div class="body-option" data-body="hand">
+                        <div class="body-icon">✋</div>
+                        <div>
+                            <h3>Hand & Wrist</h3>
+                            <p>Wrist and finger exercises</p>
+                        </div>
+                    </div>
+                    <div class="body-option" data-body="lower">
+                        <div class="body-icon">🦵</div>
+                        <div>
+                            <h3>Lower Body</h3>
+                            <p>Leg and lower body exercises</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="exercise-list" id="exerciseList">
+                    <!-- Exercises will be populated dynamically -->
+                </div>
+            </div>
+            
+            <div class="camera-section">
+                <h2 class="section-title">Live Tracking</h2>
+                <div class="camera-container">
+                    <video id="video" autoplay muted playsinline></video>
+                    <canvas id="canvas"></canvas>
+                </div>
+                
+                <div class="exercise-controls">
+                    <button class="control-btn" id="startExerciseBtn">
+                        <span>▶</span> Start Exercise
+                    </button>
+                    <button class="control-btn" id="pauseExerciseBtn" disabled>
+                        <span>⏸</span> Pause
+                    </button>
+                    <button class="control-btn" id="endSessionBtn" disabled>
+                        <span>⏹</span> End Session
+                    </button>
+                </div>
+                
+                <div class="session-stats">
+                    <div class="stat-card">
+                        <div class="stat-value" id="repCount">0</div>
+                        <div class="stat-label">Repetitions</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="sessionTime">0:00</div>
+                        <div class="stat-label">Session Time</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="formScore">100%</div>
+                        <div class="stat-label">Form Score</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="currentModel">Pose</div>
+                        <div class="stat-label">Active Model</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="stats-section">
+                <h2 class="section-title">Exercise Feedback</h2>
+                <div class="feedback-list" id="feedbackList">
+                    <div class="feedback-item">Select an exercise and click "Start Exercise" to begin tracking</div>
+                </div>
+                
+                <div class="instructions-container">
+                    <h3>Exercise Instructions</h3>
+                    <div id="exerciseInstructions">
+                        <p>Select a body part from the left panel, then choose an exercise from the list. Click "Start Exercise" to begin tracking your form and repetitions.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load all MediaPipe models -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    
+    <script src="patient-script.js"></script>
+<!-- Video Guidance Popup -->
+<div class="video-guidance-overlay" id="videoGuidanceOverlay">
+    <div class="video-guidance-container">
+        <div class="video-guidance-header">
+            <h2 id="videoExerciseTitle">Exercise Guidance Video</h2>
+            <button class="close-video-btn" id="closeVideoBtn">&times;</button>
+        </div>
+        
+        <div class="video-guidance-body">
+            <div class="video-player-container">
+                <video id="guidanceVideo" controls>
+                    <source id="videoSource" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+            
+            <div class="video-controls">
+                <button class="video-control-btn" id="playPauseBtn">
+                    <span>▶</span> Play Video
+                </button>
+                <button class="video-control-btn replay" id="replayBtn">
+                    <span>↻</span> Replay
+                </button>
+                <button class="video-control-btn" id="skipVideoBtn">
+                    <span>⏭</span> Skip & Start Exercise
+                </button>
+            </div>
+            
+            <div class="video-instructions">
+                <h3>Exercise Instructions</h3>
+                <ol id="videoInstructionsList">
+                    <li>Watch the video demonstration carefully</li>
+                    <li>Pay attention to the correct form and posture</li>
+                    <li>Note the range of motion</li>
+                    <li>Follow the breathing pattern if shown</li>
+                </ol>
+            </div>
+            
+            <div class="video-tips">
+                <div class="tip-item">
+                    <h4>✅ Safety Tips</h4>
+                    <p>Start slowly and gradually increase intensity. Stop if you feel pain.</p>
+                </div>
+                <div class="tip-item warning">
+                    <h4>⚠️ Important Notes</h4>
+                    <p>Maintain proper posture throughout the exercise. Don't rush the movements.</p>
+                </div>
+                <div class="tip-item success">
+                    <h4>🎯 Success Tips</h4>
+                    <p>Focus on quality over quantity. Proper form is more important than speed.</p>
+                </div>
+            </div>
+            
+            <div class="auto-close-notice" id="autoCloseNotice">
+                ⏰ This video will close automatically in <span id="countdownTimer">30</span> seconds
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+
+</html>

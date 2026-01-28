@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Training Mode - Rehabilitation Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="training-styles.css">
+    <!-- Add this to your training.html header -->
+<div class="training-nav">
+    <button onclick="viewPatientProgress()" class="nav-btn">
+        👤 Patient Progress
+    </button>
+    
+</div>
+
+<style>
+.training-nav {
+    display: flex;
+    gap: 15px;
+    margin: 20px 0;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.nav-btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 180px;
+}
+
+.nav-btn:first-child {
+    background: #2575fc;
+    color: white;
+}
+
+.nav-btn:first-child:hover {
+    background: #1a68ea;
+    transform: translateY(-2px);
+}
+
+.nav-btn:last-child {
+    background: #00b894;
+    color: white;
+}
+
+.nav-btn:last-child:hover {
+    background: #00a085;
+    transform: translateY(-2px);
+}
+</style>
+
+<script>
+function viewPatientProgress() {
+    // For viewing specific patient progress
+    // You can add a patient selection modal here
+    window.location.href = 'progress.html';
+}
+
+function viewAllProgress() {
+    // For viewing all patients' progress
+    window.location.href = 'progress.html';
+}
+</script>
+</head>
+<body>
+    <a href="index.html" class="back-home">← Back to Home</a>
+    
+    <div class="training-container">
+        <header class="training-header">
+            <h1>🏋️ Training Mode - Therapist Dashboard</h1>
+            <p class="subtitle">Professional tools for rehabilitation specialists and therapists</p>
+        </header>
+        
+        <div class="training-dashboard">
+            <!-- Left Sidebar - Patient Management -->
+            <div class="sidebar">
+                <div class="sidebar-section">
+                    <h2><span class="icon">👥</span> Patients</h2>
+                    <div class="search-box">
+                        <input type="text" id="patientSearch" placeholder="Search patients...">
+                        <button id="addPatientBtn">+ Add New</button>
+                    </div>
+                    <div class="patient-list" id="patientList">
+                        <!-- Patient list will be populated here -->
+                    </div>
+                </div>
+                
+                <div class="sidebar-section">
+                    <h2><span class="icon">📊</span> Quick Stats</h2>
+                    <div class="stats-summary">
+                        <div class="stat-item">
+                            <div class="stat-value" id="totalPatients">0</div>
+                            <div class="stat-label">Total Patients</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="activeSessions">0</div>
+                            <div class="stat-label">Active Sessions</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="avgProgress">0%</div>
+                            <div class="stat-label">Avg. Progress</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Main Content Area -->
+            <div class="main-content">
+                <!-- Patient Profile Section -->
+                <div class="profile-section" id="profileSection" style="display: none;">
+                    <div class="profile-header">
+                        <h2 id="patientName">Patient Name</h2>
+                        <div class="profile-actions">
+                            <button class="btn-secondary" id="editProfileBtn">Edit Profile</button>
+                            <button class="btn-primary" id="startSessionBtn">Start New Session</button>
+                        </div>
+                    </div>
+                    
+                    <div class="tabs">
+                        <button class="tab-btn active" data-tab="overview">Overview</button>
+                        <button class="tab-btn" data-tab="exercises">Exercise Program</button>
+                        <button class="tab-btn" data-tab="progress">Progress</button>
+                        <button class="tab-btn" data-tab="notes">Notes</button>
+                    </div>
+                    
+                    <div class="tab-content">
+                        <!-- Overview Tab -->
+                        <div id="overviewTab" class="tab-pane active">
+                            <div class="info-grid">
+                                <div class="info-card">
+                                    <h3>Basic Information</h3>
+                                    <div class="info-item">
+                                        <span class="info-label">Age:</span>
+                                        <span id="patientAge">-</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="info-label">Gender:</span>
+                                        <span id="patientGender">-</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="info-label">Condition:</span>
+                                        <span id="patientCondition">-</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="info-label">Therapist:</span>
+                                        <span id="assignedTherapist">-</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="info-card">
+                                    <h3>Recent Sessions</h3>
+                                    <div id="recentSessions">
+                                        <p>No sessions recorded yet</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="info-card">
+                                    <h3>Goals & Objectives</h3>
+                                    <div id="patientGoals">
+                                        <p>No goals set</p>
+                                    </div>
+                                    <button class="btn-small" id="addGoalBtn">Add Goal</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Exercise Program Tab -->
+                        <div id="exercisesTab" class="tab-pane">
+                            <div class="exercise-program-header">
+                                <h3>Custom Exercise Program</h3>
+                                <button class="btn-primary" id="addExerciseBtn">+ Add Exercise</button>
+                            </div>
+                            <div class="exercise-program" id="exerciseProgram">
+                                <!-- Exercises will be populated here -->
+                            </div>
+                        </div>
+                        
+                        <!-- Progress Tab -->
+                        <div id="progressTab" class="tab-pane">
+                            <div class="progress-header">
+                                <h3>Progress Analytics</h3>
+                                <select id="progressMetric">
+                                    <option value="form_score">Form Score</option>
+                                    <option value="repetitions">Repetitions</option>
+                                    <option value="range_of_motion">Range of Motion</option>
+                                    <option value="pain_level">Pain Level</option>
+                                </select>
+                            </div>
+                            <div class="progress-chart-container">
+                                <canvas id="progressChart"></canvas>
+                            </div>
+                            <div class="progress-stats">
+                                <div class="progress-stat">
+                                    <div class="stat-label">Best Form Score</div>
+                                    <div class="stat-value" id="bestFormScore">-</div>
+                                </div>
+                                <div class="progress-stat">
+                                    <div class="stat-label">Avg. Session Duration</div>
+                                    <div class="stat-value" id="avgDuration">-</div>
+                                </div>
+                                <div class="progress-stat">
+                                    <div class="stat-label">Total Exercises Completed</div>
+                                    <div class="stat-value" id="totalExercises">-</div>
+                                </div>
+                                <div class="progress-stat">
+                                    <div class="stat-label">Consistency Rate</div>
+                                    <div class="stat-value" id="consistencyRate">-</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Notes Tab -->
+                        <div id="notesTab" class="tab-pane">
+                            <div class="notes-header">
+                                <h3>Clinical Notes</h3>
+                                <button class="btn-primary" id="addNoteBtn">+ Add Note</button>
+                            </div>
+                            <div class="notes-list" id="notesList">
+                                <!-- Notes will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Empty State -->
+                <div class="empty-state" id="emptyState">
+                    <div class="empty-icon">👨‍⚕️</div>
+                    <h3>Welcome to Training Mode</h3>
+                    <p>Select a patient from the sidebar or add a new patient to begin.</p>
+                    <button class="btn-primary" id="quickAddPatient">+ Add First Patient</button>
+                </div>
+            </div>
+            
+            <!-- Right Sidebar - Session Monitoring -->
+            <div class="session-sidebar">
+                <div class="session-section">
+                    <h2><span class="icon">🎯</span> Active Sessions</h2>
+                    <div class="active-sessions" id="activeSessionsList">
+                        <!-- Active sessions will appear here -->
+                    </div>
+                </div>
+                
+                <div class="session-section">
+                    <h2><span class="icon">📋</span> Exercise Library</h2>
+                    <div class="exercise-library">
+                        <div class="exercise-category">
+                            <h4>Neck Exercises</h4>
+                            <button class="lib-exercise" data-exercise="neck_flexion">Flexion & Extension</button>
+                            <button class="lib-exercise" data-exercise="neck_rotation">Rotation</button>
+                        </div>
+                        <div class="exercise-category">
+                            <h4>Upper Body</h4>
+                            <button class="lib-exercise" data-exercise="shoulder_abduction">Shoulder Abduction</button>
+                            <button class="lib-exercise" data-exercise="shoulder_flexion">Shoulder Flexion</button>
+                            <button class="lib-exercise" data-exercise="elbow_flexion">Elbow Flexion</button>
+                        </div>
+                        <div class="exercise-category">
+                            <h4>Hand & Wrist</h4>
+                            <button class="lib-exercise" data-exercise="wrist_flexion">Wrist Flexion</button>
+                            <button class="lib-exercise" data-exercise="finger_flexion">Finger Squeeze</button>
+                        </div>
+                        <div class="exercise-category">
+                            <h4>Lower Body</h4>
+                            <button class="lib-exercise" data-exercise="squat">Squat</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Modals -->
+        <div class="modal" id="patientModal">
+            <div class="modal-content">
+                <h3 id="modalTitle">Add New Patient</h3>
+                <form id="patientForm">
+                    <div class="form-group">
+                        <label for="modalName">Full Name *</label>
+                        <input type="text" id="modalName" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="modalAge">Age</label>
+                            <input type="number" id="modalAge" min="1" max="120">
+                        </div>
+                        <div class="form-group">
+                            <label for="modalGender">Gender</label>
+                            <select id="modalGender">
+                                <option value="">Select</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="modalCondition">Medical Condition</label>
+                        <textarea id="modalCondition" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="modalTherapist">Assigned Therapist</label>
+                        <input type="text" id="modalTherapist">
+                    </div>
+                    <div class="form-group">
+                        <label for="modalGoals">Initial Goals</label>
+                        <textarea id="modalGoals" rows="3"></textarea>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-secondary" id="cancelModal">Cancel</button>
+                        <button type="submit" class="btn-primary">Save Patient</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="modal" id="exerciseModal">
+            <div class="modal-content">
+                <h3>Add Exercise to Program</h3>
+                <form id="exerciseForm">
+                    <div class="form-group">
+                        <label for="exerciseType">Exercise Type *</label>
+                        <select id="exerciseType" required>
+                            <option value="">Select exercise</option>
+                            <option value="neck_flexion">Neck Flexion & Extension</option>
+                            <option value="neck_rotation">Neck Rotation</option>
+                            <option value="shoulder_abduction">Shoulder Abduction</option>
+                            <option value="shoulder_flexion">Shoulder Flexion</option>
+                            <option value="elbow_flexion">Elbow Flexion & Extension</option>
+                            <option value="wrist_flexion">Wrist Flexion & Extension</option>
+                            <option value="finger_flexion">Finger Squeeze & Open</option>
+                            <option value="squat">Squat</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="exerciseSets">Sets *</label>
+                            <input type="number" id="exerciseSets" min="1" max="10" value="3" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="exerciseReps">Reps per Set *</label>
+                            <input type="number" id="exerciseReps" min="1" max="50" value="10" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="exerciseFrequency">Frequency (per week)</label>
+                            <input type="number" id="exerciseFrequency" min="1" max="14" value="3">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="exerciseInstructions">Custom Instructions</label>
+                        <textarea id="exerciseInstructions" rows="3"></textarea>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-secondary" id="cancelExerciseModal">Cancel</button>
+                        <button type="submit" class="btn-primary">Add Exercise</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart.js for progress charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="training-script.js"></script>
+</body>
+</html>
+<!-- Add a button in your training.html -->
+
+<script>
+function viewProgressDashboard() {
+    window.location.href = 'progress.html';
+}
+</script>

@@ -1,0 +1,61 @@
+Neck Exercises (5 videos):
+neck_flexion.mp4 - Neck Flexion & Extension
+
+neck_rotation.mp4 - Neck Rotation
+
+neck_stretch.mp4 - Neck Stretch (default)
+
+chin_tucks.mp4 - Chin Tucks
+
+neck_isometrics.mp4 - Neck Isometrics
+
+Upper Body Exercises (5 videos):
+shoulder_abduction.mp4 - Shoulder Abduction
+
+shoulder_flexion.mp4 - Shoulder Flexion
+
+shoulder_press.mp4 - Shoulder Press (default)
+
+chest_stretch.mp4 - Chest Stretch
+
+arm_circles.mp4 - Arm Circles
+
+Hand & Wrist Exercises (5 videos):
+wrist_flexion.mp4 - Wrist Flexion & Extension (default)
+
+wrist_extension.mp4 - Wrist Extension
+
+finger_flexion.mp4 - Finger Squeeze & Open
+
+grip_strengthening.mp4 - Grip Strengthening
+
+thumb_exercises.mp4 - Thumb Exercises
+
+Lower Body Exercises (5 videos):
+squat.mp4 - Squat
+
+leg_raises.mp4 - Leg Raises (default)
+
+knee_bends.mp4 - Knee Bends
+
+ankle_rotations.mp4 - Ankle Rotations
+
+hip_abduction.mp4 - Hip Abduction
+
+calf_raises.mp4 - Calf Raises
+
+Additional Videos from your code:
+elbow_flexion.mp4 - Elbow Flexion & Extension
+
+arm_raises.mp4 - Arm Raises
+
+shoulder_rotations.mp4 - Shoulder Rotations
+
+head_tilt.mp4 - Head Tilt
+
+finger_stretches.mp4 - Finger Stretches
+
+General/Backup Videos:
+general_exercise.mp4 - General Exercise Demo (fallback video)
+
+Total Video Files Needed: 27 MP4 files
