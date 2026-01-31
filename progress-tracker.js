@@ -192,7 +192,7 @@ function loadTherapistDashboard() {
             : 'Never';
         
         html += `
-            <div class="patient-card" onclick="viewPatientProgress('${patient.username}')">
+            <div class="patient-card" onclick="showPatientView('${patient.username}')">
                 <div class="patient-header">
                     <div class="patient-avatar">${patient.name.charAt(0)}</div>
                     <div class="patient-info">
@@ -212,7 +212,7 @@ function loadTherapistDashboard() {
                     <p><strong>Phone:</strong> ${patient.phone || 'N/A'}</p>
                     <p class="patient-notes">${patient.notes || 'No notes'}</p>
                 </div>
-                <button class="btn-view-details" onclick="event.stopPropagation(); viewPatientProgress('${patient.username}')">
+                <button class="btn-view-details" onclick="event.stopPropagation(); showPatientView('${patient.username}')">
                     View Progress
                 </button>
             </div>
@@ -222,6 +222,81 @@ function loadTherapistDashboard() {
     html += '</div>';
     container.innerHTML = html;
 }
+
+// New function to show patient view for therapists
+function showPatientView(username) {
+    // Hide therapist controls
+    document.getElementById('therapistControls').style.display = 'none';
+    
+    // Show patient view
+    const patientView = document.getElementById('patientView');
+    patientView.style.display = 'block';
+    
+    // Update page title
+    document.title = `Patient Progress: ${username}`;
+    
+    // Add back button to return to therapist dashboard
+    addBackToDashboardButton();
+    
+    // Load patient data into the patient view
+    loadPatientDashboard(username);
+}
+
+// Function to add back button
+function addBackToDashboardButton() {
+    const headerControls = document.querySelector('.header-controls');
+    
+    // Check if back button already exists
+    if (!document.getElementById('backToDashboardBtn')) {
+        const backBtn = document.createElement('button');
+        backBtn.id = 'backToDashboardBtn';
+        backBtn.className = 'btn btn-back';
+        backBtn.innerHTML = '← Back to Patients';
+        backBtn.onclick = backToDashboard;
+        
+        // Add to beginning of header controls
+        headerControls.insertBefore(backBtn, headerControls.firstChild);
+    }
+}
+
+// Function to go back to therapist dashboard
+function backToDashboard() {
+    // Show therapist controls
+    document.getElementById('therapistControls').style.display = 'block';
+    
+    // Hide patient view
+    document.getElementById('patientView').style.display = 'none';
+    
+    // Remove back button
+    const backBtn = document.getElementById('backToDashboardBtn');
+    if (backBtn) {
+        backBtn.remove();
+    }
+    
+    // Reset page title
+    document.title = 'Therapist Dashboard - Progress Tracking';
+    
+    // Reload patients list
+    loadTherapistDashboard();
+}
+
+// Update the existing viewPatientProgress function
+function viewPatientProgress(username) {
+    // For therapist, show patient view inline
+    const currentUser = JSON.parse(localStorage.getItem('rehabUser'));
+    
+    if (currentUser && currentUser.role === 'therapist') {
+        showPatientView(username);
+    } else {
+        // For patients or direct links, open in new tab
+        sessionStorage.setItem('viewingPatient', username);
+        window.open('progress.html?view=' + username, '_blank');
+    }
+}
+
+// Add these functions to global window object
+window.showPatientView = showPatientView;
+window.backToDashboard = backToDashboard;
 
 // ===== CHARTS =====
 
